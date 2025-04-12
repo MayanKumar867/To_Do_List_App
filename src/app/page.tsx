@@ -15,42 +15,34 @@ interface Todo {
 export default function Home() {
   const [todos, setTodos] = useState<Todo[]>([]);
   const [selectedTodo, setSelectedTodo] = useState<Todo | null>(null);
-  const [backendStatus, setBackendStatus] = useState<'loading' | 'connected' | 'error'>('loading');
+  const [loading, setLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // First test if backend is reachable
-    fetch('http://localhost:5000/api/test')
-      .then(response => response.json())
-      .then(data => {
-        console.log('Backend connection successful:', data);
-        setBackendStatus('connected');
-        fetchTodos();
-      })
-      .catch(error => {
-        console.error('Error connecting to backend:', error);
-        setBackendStatus('error');
-        setErrorMessage('Cannot connect to backend server. Make sure it is running on port 5000.');
-      });
+    fetchTodos();
   }, []);
 
   const fetchTodos = async () => {
     try {
-      const response = await fetch('http://localhost:5000/api/todos');
+      setLoading(true);
+      const response = await fetch('/api/todos');
       if (!response.ok) {
         throw new Error(`HTTP error! Status: ${response.status}`);
       }
       const data = await response.json();
       setTodos(data);
+      setErrorMessage(null);
     } catch (error) {
       console.error('Error fetching todos:', error);
       setErrorMessage('Failed to load todos. Please check the console for more details.');
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleAddTodo = async (title: string, description: string) => {
     try {
-      const response = await fetch('http://localhost:5000/api/todos', {
+      const response = await fetch('/api/todos', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,7 +65,7 @@ export default function Home() {
 
   const handleUpdateTodo = async (id: string, title: string, description: string) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/todos/${id}`, {
+      const response = await fetch(`/api/todos/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -100,31 +92,17 @@ export default function Home() {
       <div className="max-w-6xl mx-auto">
         <h1 className="text-4xl font-bold text-gray-800 mb-8">Todo App</h1>
         
-        {backendStatus === 'error' && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-            <p><strong>Connection Error:</strong> {errorMessage}</p>
-            <p className="mt-2">Please make sure:</p>
-            <ul className="list-disc ml-6">
-              <li>MongoDB is running</li>
-              <li>Backend server is running on port 5000</li>
-              <li>You have started the backend with: cd backend; npm run dev</li>
-            </ul>
-          </div>
-        )}
-        
-        {errorMessage && backendStatus !== 'error' && (
+        {errorMessage && (
           <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
             <p>{errorMessage}</p>
           </div>
         )}
         
-        {backendStatus === 'loading' && (
+        {loading && todos.length === 0 ? (
           <div className="text-center py-10">
-            <p className="text-lg">Connecting to backend...</p>
+            <p className="text-lg">Loading todos...</p>
           </div>
-        )}
-        
-        {(backendStatus === 'connected' || todos.length > 0) && (
+        ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <div>
               <TodoForm onSubmit={handleAddTodo} />
